@@ -234,6 +234,10 @@ struct Args {
     /// Path to calldata JSON file path
     #[arg(short, long)]
     calldata: String,
+
+    /// Optional contract address to override the default CREATE2 factory
+    #[arg(long)]
+    contract: Option<String>,
 }
 
 #[tokio::main]
@@ -273,8 +277,13 @@ async fn main() -> Result<(), Create2Error> {
             .wallet(wallet.clone())
             .on_http(Url::from_str(&rpc_url).unwrap());
 
-        let address = Address::from_str(IMMUTABLE_CREATE2_FACTORY_ADDRESS)
-            .map_err(|e| Create2Error::AddressParseError(e.to_string()))?;
+        let address = match &args.contract {
+            Some(addr) => Address::from_str(addr)
+                .map_err(|e| Create2Error::AddressParseError(e.to_string()))?,
+            None => Address::from_str(IMMUTABLE_CREATE2_FACTORY_ADDRESS)
+                .map_err(|e| Create2Error::AddressParseError(e.to_string()))?,
+        };
+
         let create2_factory = ImmutableCreate2FactoryInstance::new(address, &provider);
 
         // Check if information is correct

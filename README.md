@@ -14,11 +14,12 @@ cargo install --path .
 ### Command Line Interface
 
 ```bash
-❯ create2deploy -h
-Usage: create2deploy --calldata <CALLDATA>
+❯ create2deploy -h      
+Usage: create2deploy [OPTIONS] --calldata <CALLDATA>
 
 Options:
   -c, --calldata <CALLDATA>  Path to calldata JSON file path
+      --contract <CONTRACT>  Optional contract address to override the default CREATE2 factory
   -h, --help                 Print help
   -V, --version              Print version
 ```
