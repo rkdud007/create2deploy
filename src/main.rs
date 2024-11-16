@@ -231,10 +231,6 @@ const IMMUTABLE_CREATE2_FACTORY_ADDRESS: &str = "0x0000000000FFe8B47B3e2130213B8
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// RPC Provider URL
-    #[arg(short, long)]
-    rpc: String,
-
     /// Path to calldata JSON file path
     #[arg(short, long)]
     calldata: String,
@@ -248,18 +244,21 @@ async fn main() -> Result<(), Create2Error> {
     let signer = PrivateKeySigner::from_str(&pkey).map_err(|_| Create2Error::PrivateKeyError)?;
     let wallet = EthereumWallet::from(signer);
 
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet)
-        .on_http(Url::from_str(&args.rpc).unwrap());
-
-    let address = Address::from_str(IMMUTABLE_CREATE2_FACTORY_ADDRESS)
-        .map_err(|e| Create2Error::AddressParseError(e.to_string()))?;
-    let create2_factory = ImmutableCreate2FactoryInstance::new(address, &provider);
-
     // parse from calldata file
     let calldata = fs::read_to_string(&args.calldata)?;
     let json: Value = from_str(&calldata).unwrap();
+    let rpc_urls: Vec<String> = json["rpc_urls"]
+        .as_array()
+        .ok_or_else(|| Create2Error::JsonParseError)?
+        .iter()
+        .filter_map(|url| url.as_str().map(String::from))
+        .collect();
+
+    if rpc_urls.is_empty() {
+        println!("❗️ provide at least 1 rpc provider url to deploy contract");
+        return Err(Create2Error::JsonParseError);
+    }
+
     let salt = json["salt"]
         .as_str()
         .ok_or_else(|| Create2Error::JsonParseError)?;
@@ -267,45 +266,60 @@ async fn main() -> Result<(), Create2Error> {
         .as_str()
         .ok_or_else(|| Create2Error::JsonParseError)?;
 
-    // Check if information is correct
-    let address = create2_factory
-        .findCreate2Address(
+    for rpc_url in rpc_urls {
+        println!("🔍 Target chain's rpc url: {}", rpc_url);
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(wallet.clone())
+            .on_http(Url::from_str(&rpc_url).unwrap());
+
+        let address = Address::from_str(IMMUTABLE_CREATE2_FACTORY_ADDRESS)
+            .map_err(|e| Create2Error::AddressParseError(e.to_string()))?;
+        let create2_factory = ImmutableCreate2FactoryInstance::new(address, &provider);
+
+        // Check if information is correct
+        let address = create2_factory
+            .findCreate2Address(
+                B256::from_str(salt).map_err(|e| Create2Error::HexParseError(e.to_string()))?,
+                Bytes::from_hex(init_code)
+                    .map_err(|e| Create2Error::HexParseError(e.to_string()))?,
+            )
+            .call()
+            .await
+            .map_err(|e| Create2Error::ContractError(e.to_string()))?;
+        println!("👀 target address: {:?}", address.deploymentAddress);
+
+        // Confirmation prompt
+        println!("Is this the target address you want? (y/n):");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+
+        if input.trim().to_lowercase() != "y" {
+            return Err(Create2Error::UserAborted);
+        }
+
+        // CREATE2
+        let builder = create2_factory.safeCreate2(
             B256::from_str(salt).map_err(|e| Create2Error::HexParseError(e.to_string()))?,
             Bytes::from_hex(init_code).map_err(|e| Create2Error::HexParseError(e.to_string()))?,
-        )
-        .call()
-        .await
-        .map_err(|e| Create2Error::ContractError(e.to_string()))?;
-    println!("👀 target address: {:?}", address.deploymentAddress);
+        );
 
-    // Confirmation prompt
-    println!("Is this the target address you want? (y/n):");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
+        builder
+            .call()
+            .await
+            .map_err(|e| Create2Error::ContractError(e.to_string()))?;
+        let tx = builder
+            .send()
+            .await
+            .map_err(|e| Create2Error::ContractError(e.to_string()))?
+            .get_receipt()
+            .await
+            .map_err(|e| Create2Error::ContractError(e.to_string()))?;
 
-    if input.trim().to_lowercase() != "y" {
-        return Err(Create2Error::UserAborted);
+        println!("🚀 safeCreate2 transaction: {:?}", tx);
     }
 
-    // CREATE2
-    let builder = create2_factory.safeCreate2(
-        B256::from_str(salt).map_err(|e| Create2Error::HexParseError(e.to_string()))?,
-        Bytes::from_hex(init_code).map_err(|e| Create2Error::HexParseError(e.to_string()))?,
-    );
-
-    builder
-        .call()
-        .await
-        .map_err(|e| Create2Error::ContractError(e.to_string()))?;
-    let tx = builder
-        .send()
-        .await
-        .map_err(|e| Create2Error::ContractError(e.to_string()))?
-        .get_receipt()
-        .await
-        .map_err(|e| Create2Error::ContractError(e.to_string()))?;
-
-    println!("🚀 safeCreate2 transaction: {:?}", tx);
+    println!("🎉 Deployed all target contracts using CREATE2");
     Ok(())
 }
 

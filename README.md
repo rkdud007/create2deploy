@@ -14,12 +14,11 @@ cargo install --path .
 ### Command Line Interface
 
 ```bash
-create2deploy -h
-Usage: create2deploy --rpc <RPC> --calldata <CALLDATA>
+❯ create2deploy -h
+Usage: create2deploy --calldata <CALLDATA>
 
 Options:
-  -r, --rpc <RPC>            RPC Provider URL
-  -c, --calldata <CALLDATA>  Path to calldata JSON file
+  -c, --calldata <CALLDATA>  Path to calldata JSON file path
   -h, --help                 Print help
   -V, --version              Print version
 ```
@@ -29,6 +28,11 @@ Options:
 1. Create a `meta.json` file with your deployment parameters:
 ```json
 {
+     "rpc_urls": [
+        "target-chain-rpc-url-1",
+        "target-chain-rpc-url-2",
+        ...
+    ],
     "salt": "0x..",
     "initCode": "deadbeaf.."
 }
@@ -39,13 +43,22 @@ Options:
 ### Example
 
 ```
-❯ create2deploy --rpc https://sepolia.optimism.io --calldata meta.json
+❯ create2deploy -c meta.json
+🔍 Target chain's rpc url: https://sepolia.base.org
 👀 target address: 0xc8c8c8c8421e85597881ae753d040449e81e528a
 Is this the target address you want? (y/n):
 y
 🚀 safeCreate2 transaction: TransactionReceipt { 
     // ... transaction details ... 
 }
+🔍 Target chain's rpc url: https://sepolia.optimism.io
+👀 target address: 0xc8c8c8c8421e85597881ae753d040449e81e528a
+Is this the target address you want? (y/n):
+y
+🚀 safeCreate2 transaction: TransactionReceipt { 
+    // ... transaction details ... 
+}
+🎉 Deployed all target contracts using CREATE2
 ```
 
 
