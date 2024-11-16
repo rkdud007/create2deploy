@@ -1,6 +1,6 @@
-# Create2 Deploy
+# Create2Deploy
 
-A simple helper script for deploying contracts using CREATE2. This tool utilizes 0age's [Create2Factory Contract](https://github.com/0age/Pr000xy/blob/master/contracts/Create2Factory.sol) to pre-compute deterministic contract addresses based on salt values before deploy.
+A helper cli for deploying contracts using CREATE2 for multi-chain. This tool utilizes 0age's [Create2Factory Contract](https://github.com/0age/Pr000xy/blob/master/contracts/Create2Factory.sol) to pre-compute deterministic contract addresses based on salt values before deploy.
 
 ## Installation
 
