@@ -38,8 +38,8 @@ Options:
 
 ### Example
 
-```console
-create2deploy --rpc https://sepolia.optimism.io --calldata meta.json
+```
+❯ create2deploy --rpc https://sepolia.optimism.io --calldata meta.json
 👀 target address: 0xc8c8c8c8421e85597881ae753d040449e81e528a
 Is this the target address you want? (y/n):
 y
